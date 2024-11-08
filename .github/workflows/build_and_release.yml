@@ -28,6 +28,9 @@ jobs:
         artifacts: "./rechnungless.war"
 #    - name: Rename file 
 #      run: cp /home/runner/work/RechnunglessConverterTEST/RechnunglessConverterTEST/target/rechnungless.war ./rechnungless.war
+    - name: downcase repository_owner
+      run: |
+        echo "REPOOWNER=${GITHUB_REPOSITORY_OWNER@L}" >> "${GITHUB_ENV}"
     - name: 'Login to GitHub Container Registry'
       uses: docker/login-action@v1
       with:
@@ -36,5 +39,5 @@ jobs:
         password: ${{secrets.GITHUB_TOKEN}}
     - name: 'Build Image'
       run: |
-        docker build . --tag ghcr.io/${{github.repository_owner}}/rechnunglessconverter:${{github.ref_name}} --tag ghcr.io/${{github.repository_owner}}/rechnunglessconverter:latest
-        docker push ghcr.io/${{github.repository_owner}}/rechnunglessconverter --all-tags
+        docker build . --tag ghcr.io/${REPOOWNER}/rechnunglessconverter:${{github.ref_name}} --tag ghcr.io/$REPOOWNER/rechnunglessconverter:latest
+        docker push ghcr.io/${REPOOWNER}/rechnunglessconverter --all-tags
