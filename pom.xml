@@ -45,6 +45,10 @@
             <artifactId>jersey-hk2</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.glassfish.jersey.media</groupId>
+            <artifactId>jersey-media-json-jackson</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.mustangproject</groupId>
             <artifactId>validator</artifactId>
             <version>2.14.2</version>
