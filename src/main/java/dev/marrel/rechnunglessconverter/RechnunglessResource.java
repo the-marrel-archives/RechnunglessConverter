@@ -97,7 +97,6 @@ public class RechnunglessResource {
                 resultMessagesArray.add(s);
             }
 
-            System.out.println(resultNode);
             return Response.ok(resultNode).build();
         } else {
             //XML is not valid and the flag to overwrite this check is not set
