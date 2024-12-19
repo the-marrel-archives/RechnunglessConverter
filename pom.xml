@@ -6,7 +6,7 @@
 
     <groupId>dev.marrel</groupId>
     <artifactId>RechnunglessConverter</artifactId>
-    <version>1.0-DEV</version>
+    <version>0.0.3</version>
     <name>RechnunglessConverter</name>
     <packaging>war</packaging>
 
