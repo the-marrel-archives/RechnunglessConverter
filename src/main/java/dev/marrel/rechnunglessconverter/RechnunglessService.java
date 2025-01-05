@@ -84,17 +84,10 @@ public class RechnunglessService {
      * @param xmlInvoice The electronic invoice to be validated
      * @return A validation result
      */
-    protected ValidationResult validateInvoice(String xmlInvoice) throws InvalidInvoiceException {
+    protected ValidationResult validateInvoice(String xmlInvoice){
         ZUGFeRDValidator zva = new ZUGFeRDValidator();
         String mustangValidationResult = zva.validate(xmlInvoice.getBytes(StandardCharsets.UTF_8), "invoice-stream.xml");
 
-        ValidationResult validationResult = new ValidationResult(mustangValidationResult);
-
-        if (!PARSE_INVALID_XMLS && !validationResult.isValid()) {
-            // XML is invalid, throw an error
-            throw new InvalidInvoiceException(validationResult); //TODO Remove Exception
-        }
-
-        return validationResult;
+        return new ValidationResult(mustangValidationResult);
     }
 }

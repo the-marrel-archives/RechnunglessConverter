@@ -1,6 +1,7 @@
 package dev.marrel.rechnunglessconverter.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import dev.marrel.rechnunglessconverter.ValidationMessage;
 import dev.marrel.rechnunglessconverter.metadata.MetadataPoint;
 
 import java.util.ArrayList;
@@ -14,6 +15,7 @@ public class MetadataResponseDto {
 
     private List<MetadataDto> metadata;
 
+    private List<ValidationMessage> messages;
 
     public String getResult() {
         return result;
@@ -38,6 +40,15 @@ public class MetadataResponseDto {
                         .setValue(metadata.get(metadataPoint))
             );
         }
+        return this;
+    }
+
+    public List<ValidationMessage> getMessages() {
+        return messages;
+    }
+
+    public MetadataResponseDto setMessages(List<ValidationMessage> messages) {
+        this.messages = messages;
         return this;
     }
 }

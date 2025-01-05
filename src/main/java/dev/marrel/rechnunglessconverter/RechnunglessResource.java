@@ -55,85 +55,89 @@ public class RechnunglessResource {
     @Consumes(MediaType.APPLICATION_XML)
     @Produces(MediaType.APPLICATION_JSON)
     public Response convert(String xmlInvoice){
-        List<ValidationMessage> validationMessages = new ArrayList<>();
-        try {
-            final ValidationResult validationResult = RECHNUNGLESS.validateInvoice(xmlInvoice);
-            validationMessages = validationResult.getMessages();
-            //TODO: remove exception, just use validationResult
-            final String invoicePdfBase64 = RECHNUNGLESS.generateInvoicePdf(xmlInvoice);
+        ValidationResult validationResult = RECHNUNGLESS.validateInvoice(xmlInvoice);
+        List<ValidationMessage> validationMessages = validationResult.getMessages();
+        if(validationResult.isValid() || RechnunglessService.PARSE_INVALID_XMLS) {
+            try {
+                final String invoicePdfBase64 = RECHNUNGLESS.generateInvoicePdf(xmlInvoice);
 
-            final HashMap<MetadataPoint, String> metadata = RECHNUNGLESS.getInvoiceMetadata(xmlInvoice);
+                final HashMap<MetadataPoint, String> metadata = RECHNUNGLESS.getInvoiceMetadata(xmlInvoice);
 
-            final ConversionResponseDto responseDto = new ConversionResponseDto()
-                    .setResult(validationResult.isValid() ? RESULT_SUCCESS : RESULT_INVALID)
-                    .setArchivePdf(invoicePdfBase64)
-                    .setIssueDate(metadata.getOrDefault(MetadataPoint.issueDate, null))
-                    .setMessages(validationResult.getMessages());
+                final ConversionResponseDto responseDto = new ConversionResponseDto()
+                        .setResult(validationResult.isValid() ? RESULT_SUCCESS : RESULT_INVALID)
+                        .setArchivePdf(invoicePdfBase64)
+                        .setIssueDate(metadata.getOrDefault(MetadataPoint.issueDate, null))
+                        .setMessages(validationResult.getMessages());
 
-            return Response.ok(responseDto).build();
+                return Response.ok(responseDto).build();
 
-        } catch (InvalidInvoiceException e) {
-            validationMessages.addAll(e.getValidationMessages());
-            final ConversionResponseDto responseDto = new ConversionResponseDto()
-                    .setResult(RESULT_INVALID)
-                    .setMessages(validationMessages);
-            return Response.status(422).entity(responseDto).build();
+            } catch (InvalidInvoiceException e) {
+                //Exception occurred during metadata extraction -> Use default process down below
+                validationMessages.addAll(e.getValidationMessages());
 
-        } catch (Exception e) {
-            // Unknown internal error during PDF generation -> throw an error back
-            System.err.println(e.getMessage());
-            final ConversionResponseDto responseDto = new ConversionResponseDto()
-                    .setResult(RESULT_FAILED)
-                    .setMessages(Collections.singletonList(new ValidationMessage().setMessage(
-                            "An internal error occurred while trying to generate PDF: " + e.getMessage()
-                    )));
-            return Response.serverError().entity(responseDto).build();
+            } catch (Exception e) {
+                // Unknown internal error during PDF generation/metadata extraction -> return an error
+                System.err.println(e.getMessage());
+                final ConversionResponseDto responseDto = new ConversionResponseDto()
+                        .setResult(RESULT_FAILED)
+                        .setMessages(Collections.singletonList(new ValidationMessage().setMessage(
+                                "An internal error occurred while trying to generate PDF: " + e.getMessage()
+                        )));
+                return Response.serverError().entity(responseDto).build();
+            }
         }
+
+        //Either invoice was determined to be invalid during validation (and the flag is not set) or during metadata extraction - in any case we treat it as an invalid invoice
+        final ConversionResponseDto responseDto = new ConversionResponseDto()
+                .setResult(RESULT_INVALID)
+                .setMessages(validationMessages);
+        return Response.status(422).entity(responseDto).build();
     }
 
     /**
-     * Extract the full metadata of an electronic invoice
+     * Extract the metadata of an electronic invoice
      * @param xmlInvoice The electronic invoice of which the metadata shall be extracted
-     * @return A {@link MetadataResponseDto} with the full metadata of the electronic invoice
+     * @return A {@link MetadataResponseDto} with the metadata of the electronic invoice
      */
-    //TODO
     @Path("/metadata")
     @POST
     @Consumes(MediaType.APPLICATION_XML)
     @Produces(MediaType.APPLICATION_JSON)
     public Response metadata(String xmlInvoice) {
-        //List<ValidationMessage> validationMessages;// = new ArrayList<>();
-        try {
-            final ValidationResult validationResult = RECHNUNGLESS.validateInvoice(xmlInvoice);
-            //validationMessages = validationResult.getMessages();
-            //TODO: remove exception, just use validationResult
+        ValidationResult validationResult = RECHNUNGLESS.validateInvoice(xmlInvoice);
+        List<ValidationMessage> validationMessages = validationResult.getMessages();
+        if(validationResult.isValid() || RechnunglessService.PARSE_INVALID_XMLS) {
+            try {
+                final HashMap<MetadataPoint, String> metadata = RECHNUNGLESS.getInvoiceMetadata(xmlInvoice);
 
-            final HashMap<MetadataPoint, String> metadata = RECHNUNGLESS.getInvoiceMetadata(xmlInvoice);
+                final MetadataResponseDto responseDto = new MetadataResponseDto()
+                        .setResult(validationResult.isValid() ? RESULT_SUCCESS : RESULT_INVALID)
+                        .setMetadata(metadata)
+                        .setMessages(validationResult.getMessages());
 
-            final MetadataResponseDto responseDto = new MetadataResponseDto()
-                    .setResult(validationResult.isValid() ? RESULT_SUCCESS : RESULT_INVALID)
-                    .setMetadata(metadata);
-                    //.setIssueDate(metadata.getOrDefault(MetadataPoint.issueDate, null))
-                    //.setMessages(validationResult.getMessages());
+                return Response.ok(responseDto).build();
 
-            return Response.ok(responseDto).build();
+            } catch (InvalidInvoiceException e) {
+                //Exception occurred during metadata extraction -> Use default process down below
+                validationMessages.addAll(e.getValidationMessages());
 
-        } catch (InvalidInvoiceException e) {
-            //validationMessages.addAll(e.getValidationMessages());
-            final MetadataResponseDto responseDto = new MetadataResponseDto()
-                    .setResult(RESULT_INVALID);
-                    //.setMessages(validationMessages);
-            return Response.status(422).entity(responseDto).build();
-
-        } catch (Exception e) {
-            // Unknown internal error during PDF generation -> throw an error back
-            System.err.println(e.getMessage());
-            final MetadataResponseDto responseDto = new MetadataResponseDto()
-                    .setResult(RESULT_FAILED);
-                    /*.setMessages(Collections.singletonList(new ValidationMessage().setMessage(
-                            "An internal error occurred while trying to generate PDF: " + e.getMessage()
-                    )));*/
-            return Response.serverError().entity(responseDto).build();
+            } catch (Exception e) {
+                // Unknown internal error during metadata extraction -> return an error
+                System.err.println(e.getMessage());
+                final ConversionResponseDto responseDto = new ConversionResponseDto()
+                        .setResult(RESULT_FAILED)
+                        .setMessages(Collections.singletonList(new ValidationMessage().setMessage(
+                                "An internal error occurred while trying to extract metadata: " + e.getMessage()
+                        )));
+                return Response.serverError().entity(responseDto).build();
+            }
         }
+
+        //Either invoice was determined to be invalid during validation (and the flag is not set) or during metadata extraction - in any case we treat it as an invalid invoice
+        final MetadataResponseDto responseDto = new MetadataResponseDto()
+            .setResult(RESULT_INVALID)
+            .setMessages(validationMessages);
+        return Response.status(422).entity(responseDto).build();
+
     }
 }
