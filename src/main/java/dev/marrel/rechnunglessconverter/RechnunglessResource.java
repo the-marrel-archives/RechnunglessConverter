@@ -39,7 +39,15 @@ public class RechnunglessResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response getVersion() {
-        return Response.status(501).build(); //TODO
+        String programVersion = RechnunglessResource.class.getPackage().getImplementationVersion();
+        String[] programVersionSplit = programVersion.split("\\.");
+
+        ObjectNode resultNode = new ObjectMapper().createObjectNode();
+        resultNode.put("major", Integer.parseInt(programVersionSplit[0]));
+        resultNode.put("minor", Integer.parseInt(programVersionSplit[1]));
+        resultNode.put("patch", Integer.parseInt(programVersionSplit[2]));
+
+        return Response.ok(resultNode).build();
     }
 
     /*
