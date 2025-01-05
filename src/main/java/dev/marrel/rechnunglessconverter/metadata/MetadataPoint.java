@@ -6,6 +6,8 @@ public enum MetadataPoint implements MetadataExtractor {
     issueDate ("invoice", ZUGFeRDImporter::getIssueDate),
     dueDate ("invoice", ZUGFeRDImporter::getDueDate),
     totalAmount ("invoice", ZUGFeRDImporter::getAmount),
+    taxAmount ("invoice", ZUGFeRDImporter::getTaxTotalAmount),
+    preTaxAmount ("invoice", ZUGFeRDImporter::getTaxBasisTotalAmount),
     buyerName ("invoice", ZUGFeRDImporter::getBuyerTradePartyName),
     paymentTerms ("invoice", ZUGFeRDImporter::getPaymentTerms),
     invoiceID ("invoice", ZUGFeRDImporter::getInvoiceID),
@@ -16,7 +18,6 @@ public enum MetadataPoint implements MetadataExtractor {
     deliveryPeriod ("invoice", new DeliveryPeriodExtractor()),
     programVersion("rechnungless", new ProgramVersionExtractor()),
     //VALIDITY
-    //CALCULATION ERRORS
     ;
 
     private final MetadataExtractor extractor;
