@@ -1,11 +1,13 @@
 package dev.marrel.rechnunglessconverter.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import dev.marrel.rechnunglessconverter.metadata.MetadataPoint;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class MetadataResponseDto {
 
     private String result;
