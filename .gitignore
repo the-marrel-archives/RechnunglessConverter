@@ -207,3 +207,5 @@ mvnw
 mbnw.cmd
 .mvn
 .idea
+src/test/resources/*/private/*
+!src/test/resources/*/private/INFO.txt

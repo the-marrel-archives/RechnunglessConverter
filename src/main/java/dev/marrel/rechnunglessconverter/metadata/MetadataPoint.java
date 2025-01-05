@@ -1,9 +1,8 @@
 package dev.marrel.rechnunglessconverter.metadata;
 
-import org.mustangproject.ZUGFeRD.XRechnungImporter;
 import org.mustangproject.ZUGFeRD.ZUGFeRDImporter;
 
-public enum METADATAPOINT implements MetadataExtractor {
+public enum MetadataPoint implements MetadataExtractor {
     issueDate ("invoice", ZUGFeRDImporter::getIssueDate),
     dueDate ("invoice", ZUGFeRDImporter::getDueDate),
     totalAmount ("invoice", ZUGFeRDImporter::getAmount),
@@ -17,20 +16,21 @@ public enum METADATAPOINT implements MetadataExtractor {
     deliveryPeriod ("invoice", new DeliveryPeriodExtractor()),
     programVersion("rechnungless", new ProgramVersionExtractor()),
     //VALIDITY
+    //CALCULATION ERRORS
     ;
 
     private final MetadataExtractor extractor;
     public final String prefix;
-    METADATAPOINT(MetadataExtractor extractor) {
+    MetadataPoint(MetadataExtractor extractor) {
         this("", extractor);
     }
-    METADATAPOINT(String prefix, MetadataExtractor extractor) {
+    MetadataPoint(String prefix, MetadataExtractor extractor) {
         this.extractor = extractor;
         this.prefix = prefix;
     }
 
     @Override
-    public String getValue(XRechnungImporter xrechung) {
-        return this.extractor.getValue(xrechung);
+    public String getValue(ZUGFeRDImporter invoice) {
+        return this.extractor.getValue(invoice);
     }
 }
