@@ -1,0 +1,2 @@
+This directory is ignored via the .gitignore file, so you can
+store your own XML files in this directory to include them in your tests.
