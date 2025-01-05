@@ -1,19 +1,18 @@
 package dev.marrel.rechnunglessconverter.dto;
 
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.marrel.rechnunglessconverter.ValidationMessage;
 
 import java.util.List;
 
-
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ConversionResponseDto {
 
     private String result;
 
     private List<ValidationMessage> messages;
-
-    private String metadata;
 
     @JsonProperty("archive_pdf")
     private String archivePdf;
@@ -37,15 +36,6 @@ public class ConversionResponseDto {
 
     public ConversionResponseDto setMessages(List<ValidationMessage> messages) {
         this.messages = messages;
-        return this;
-    }
-
-    public String getMetadata() {
-        return metadata;
-    }
-
-    public ConversionResponseDto setMetadata(String metadata) {
-        this.metadata = metadata;
         return this;
     }
 
