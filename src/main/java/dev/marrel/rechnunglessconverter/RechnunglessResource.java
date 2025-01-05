@@ -35,6 +35,13 @@ public class RechnunglessResource {
         return Response.ok("RechnunglessConverter - V" + RechnunglessResource.class.getPackage().getImplementationVersion()).build();
     }
 
+    @Path("/version")
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getVersion() {
+        return Response.status(501).build(); //TODO
+    }
+
     /*
     Return:
     {
@@ -73,23 +80,11 @@ public class RechnunglessResource {
                 } catch (IOException ignored) {}
             }
 
-            HashMap<String, String> metadata = getMetadata(xml);
+            HashMap<METADATAPOINT, String> metadata = getMetadata(xml);
 
             resultNode.put(RESULT_KEYS.RESULT.name().toLowerCase(), validationResult.isValid() ? RESULT_SUCCESS : RESULT_INVALID);
-            /*ObjectNode resultMetadataNode = resultNode.putObject(RESULT_KEYS.METADATA.name().toLowerCase());
-            for(String key : metadata.keySet()) {
-                resultMetadataNode.put(key, metadata.get(key));
-            }*/
-            /*ArrayNode resultMetadataArray = resultNode.putArray(RESULT_KEYS.METADATA.name().toLowerCase());
-            for(String key : metadata.keySet()) {
-                ObjectNode resultMetadataObject = resultMetadataArray.addObject();
-                resultMetadataObject.put("namespace", "");
-                resultMetadataObject.put("prefix", "");
-                resultMetadataObject.put("key", key);
-                resultMetadataObject.put("value", metadata.get(key));
-            }*/
-            if (metadata.containsKey(METADATAPOINT.issueDate.name())) {
-                resultNode.put(RESULT_KEYS.ISSUE_DATE.name().toLowerCase(), metadata.get(METADATAPOINT.issueDate.name()));
+            if (metadata.containsKey(METADATAPOINT.issueDate)) {
+                resultNode.put(RESULT_KEYS.ISSUE_DATE.name().toLowerCase(), metadata.get(METADATAPOINT.issueDate));
             }
             resultNode.put(RESULT_KEYS.ARCHIVE_PDF.name().toLowerCase(), pdfAsBase64);
             ArrayNode resultMessagesArray = resultNode.putArray(RESULT_KEYS.MESSAGES.name().toLowerCase());
@@ -109,13 +104,46 @@ public class RechnunglessResource {
         }
     }
 
+        /*
+    Return:
+    {
+        result: success/failed/invalid
+        messages:
+        metadata: []
+        }
+     */
     @Path("/metadata")
     @POST
     @Consumes(MediaType.APPLICATION_XML)
     @Produces(MediaType.APPLICATION_JSON)
     public Response metadata(String xml) {
-        //TODO
-        return Response.status(501).build();
+        ObjectNode resultNode = new ObjectMapper().createObjectNode();
+
+        ValidationResult validationResult = validateInvoiceStream(xml);
+        resultNode.put(RESULT_KEYS.RESULT.name().toLowerCase(), validationResult.isValid() ? RESULT_SUCCESS : RESULT_INVALID);
+        if(validationResult.isValid() || ( System.getenv().containsKey("RECHUNGLESS_PARSEINVALIDXMLS") && System.getenv("RECHUNGLESS_PARSEINVALIDXMLS").equalsIgnoreCase("true") ) ) {
+            //XML is valid -> Visualize and extract metadata
+            HashMap<METADATAPOINT, String> metadata = getMetadata(xml);
+
+
+            ArrayNode resultMetadataArray = resultNode.putArray(RESULT_KEYS.METADATA.name().toLowerCase());
+            for(METADATAPOINT metadatapoint : metadata.keySet()) {
+                ObjectNode resultMetadataObject = resultMetadataArray.addObject();
+                resultMetadataObject.put("namespace", "");
+                resultMetadataObject.put("prefix", metadatapoint.prefix);
+                resultMetadataObject.put("key", metadatapoint.name());
+                resultMetadataObject.put("value", metadata.get(metadatapoint));
+            }
+
+            return Response.ok(resultNode).build();
+        } else {
+            //XML is not valid and the flag to overwrite this check is not set
+            ArrayNode resultMessagesArray = resultNode.putArray(RESULT_KEYS.MESSAGES.name().toLowerCase());
+            for(String message: validationResult.getReasons()) {
+                resultMessagesArray.add(message);
+            }
+            return Response.status(422).entity(resultNode).build();
+        }
     }
 
 
@@ -129,14 +157,15 @@ public class RechnunglessResource {
     #########################
      */
 
-    private HashMap<String, String> getMetadata(String sourceXML) {
-        HashMap<String, String> metadataMap = new HashMap<>();
+
+    private HashMap<METADATAPOINT, String> getMetadata(String sourceXML) {
+        HashMap<METADATAPOINT, String> metadataMap = new HashMap<>();
         XRechnungImporter xrech = new XRechnungImporter(new ByteArrayInputStream(sourceXML.getBytes(StandardCharsets.UTF_8)));
 
         for(METADATAPOINT datapoint : METADATAPOINT.values()) {
             try {
                 if (datapoint.getValue(xrech) != null && !datapoint.getValue(xrech).isBlank())
-                    metadataMap.put(datapoint.name(), datapoint.getValue(xrech));
+                    metadataMap.put(datapoint, datapoint.getValue(xrech));
                 System.out.println(datapoint.name() + " : |" + datapoint.getValue(xrech) + "|");
             } catch (NullPointerException ex) {
                 //continue
