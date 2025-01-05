@@ -61,7 +61,7 @@ public class RechnunglessService {
         // workaround with temporary files. If we get an improved API, this code should be improved.
 
         Path tempXmlFile = Files.createTempFile("invoice_", ".xml");
-        Path tempPdfFile = Files.createTempFile("invoice_", ".pdf");;
+        Path tempPdfFile = Files.createTempFile("invoice_", ".pdf");
 
         Files.writeString(tempXmlFile, xmlInvoice,
                 StandardCharsets.UTF_8,

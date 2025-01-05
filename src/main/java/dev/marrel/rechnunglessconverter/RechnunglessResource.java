@@ -102,10 +102,10 @@ public class RechnunglessResource {
     @Consumes(MediaType.APPLICATION_XML)
     @Produces(MediaType.APPLICATION_JSON)
     public Response metadata(String xmlInvoice) {
-        List<ValidationMessage> validationMessages = new ArrayList<>();
+        //List<ValidationMessage> validationMessages;// = new ArrayList<>();
         try {
             final ValidationResult validationResult = RECHNUNGLESS.validateInvoice(xmlInvoice);
-            validationMessages = validationResult.getMessages();
+            //validationMessages = validationResult.getMessages();
             //TODO: remove exception, just use validationResult
 
             final HashMap<MetadataPoint, String> metadata = RECHNUNGLESS.getInvoiceMetadata(xmlInvoice);

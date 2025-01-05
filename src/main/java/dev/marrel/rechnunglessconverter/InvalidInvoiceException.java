@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 public class InvalidInvoiceException extends Exception {
 
-    private List<ValidationMessage> validationMessages = null;
+    private final List<ValidationMessage> validationMessages;
 
     InvalidInvoiceException(String message) {
         super(message);
