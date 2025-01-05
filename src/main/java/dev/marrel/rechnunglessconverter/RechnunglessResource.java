@@ -10,7 +10,6 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -38,9 +37,9 @@ public class RechnunglessResource {
         String[] programVersionSplit = programVersion.split("\\.");
 
         ObjectNode resultNode = new ObjectMapper().createObjectNode();
-        resultNode.put("major", Integer.parseInt(programVersionSplit[0]));
-        resultNode.put("minor", Integer.parseInt(programVersionSplit[1]));
-        resultNode.put("patch", Integer.parseInt(programVersionSplit[2]));
+        resultNode.put("major",programVersionSplit[0]);
+        resultNode.put("minor", programVersionSplit[1]);
+        resultNode.put("patch", programVersionSplit[2]);
 
         return Response.ok(resultNode).build();
     }
