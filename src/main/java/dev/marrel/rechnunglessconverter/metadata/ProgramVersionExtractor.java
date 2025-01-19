@@ -1,10 +1,11 @@
 package dev.marrel.rechnunglessconverter.metadata;
 
-import org.mustangproject.ZUGFeRD.XRechnungImporter;
+import org.mustangproject.ZUGFeRD.Version;
+import org.mustangproject.ZUGFeRD.ZUGFeRDImporter;
 
 public class ProgramVersionExtractor implements MetadataExtractor {
     @Override
-    public String getValue(XRechnungImporter xrechung) {
-        return "RechnunglessConverter v" + ProgramVersionExtractor.class.getPackage().getImplementationVersion()/* + " w/ MustangProject v" + ZUGFeRDImporter.class.getPackage().getImplementationVersion()*/;
+    public String getValue(ZUGFeRDImporter invoice) {
+        return "RechnunglessConverter v" + ProgramVersionExtractor.class.getPackage().getImplementationVersion() + " w/ MustangProject v" + Version.VERSION;
     }
 }

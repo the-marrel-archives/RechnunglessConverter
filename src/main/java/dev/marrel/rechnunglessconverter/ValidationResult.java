@@ -2,6 +2,7 @@ package dev.marrel.rechnunglessconverter;
 
 import dev.marrel.rechnunglessconverter.util.XMLTools;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import javax.xml.xpath.XPath;
@@ -10,47 +11,62 @@ import javax.xml.xpath.XPathFactory;
 import java.util.ArrayList;
 
 public class ValidationResult {
-    private boolean isValid;
-    private ArrayList<String> reasons;
+    private boolean isSchemaValid;
+    private boolean isRecalculationValid;
+    private final ArrayList<ValidationMessage> messages = new ArrayList<>();
 
-    public ValidationResult(String mustangValidationXml) {
-        reasons = new ArrayList<>();
-
-        Element e = XMLTools.parseStringXML(mustangValidationXml);
+    public ValidationResult(String mustangValidationXml, String recalculationError) {
+        Element resultXmlRoot = XMLTools.parseStringXML(mustangValidationXml);
 
         XPathFactory xPathFactory = XPathFactory.newInstance();
         XPath xpath = xPathFactory.newXPath();
         try {
-            isValid = xpath.evaluate("/validation/summary/@status", e).equals("valid");
+            isSchemaValid = xpath.evaluate("/validation/summary/@status", resultXmlRoot).equals("valid");
         } catch (XPathExpressionException ex) {
             throw new RuntimeException(ex);
         }
 
-        if(!isValid) {
-            NodeList messageNodes = e.getElementsByTagName("messages");
-            for(int i=0; i< messageNodes.getLength(); i++) {
-                Element messageElement = (Element) messageNodes.item(i);
-                NodeList errorNodes = messageElement.getElementsByTagName("error");
-                for(int k=0; k<errorNodes.getLength(); k++) {
-                    Element errorElement = (Element) errorNodes.item(k);
-                    StringBuilder sb = new StringBuilder();
-                    if(errorElement.hasAttribute("type")) sb.append("type=\"").append(errorElement.getAttribute("type")).append("\"; ");
-                    if(errorElement.hasAttribute("location")) sb.append("location=\"").append(errorElement.getAttribute("location")).append("\"; ");
-                    if(errorElement.hasAttribute("criterion")) sb.append("criterion=\"").append(errorElement.getAttribute("criterion")).append("\"; ");
-                    sb.append(errorElement.getTextContent());
-                    reasons.add(sb.toString());
+        NodeList messageContainers = resultXmlRoot.getElementsByTagName("messages");
+        for(Node messageContainer : XMLTools.nodesAsList(messageContainers)) {
+            for(Node messageItem : XMLTools.nodesAsList(messageContainer.getChildNodes())) {
+                if ("#text".equals(messageItem.getNodeName())) {
+                    continue;
+                }
+                ValidationMessage validationMessage = new ValidationMessage()
+                        .setLevel(messageItem.getNodeName())
+                        .setMessage(messageItem.getTextContent().trim());
+                if (messageItem instanceof Element messageElement) {
+                    validationMessage
+                            .setCriterion(messageElement.getAttribute("criterion"))
+                            .setLocation(messageElement.getAttribute("location"))
+                            .setType(messageElement.getAttribute("type"));
+                }
+                if (!validationMessage.getMessage().isBlank()) {
+                    messages.add(validationMessage);
                 }
             }
+        }
 
+        //If a RecalculationError occurred, then add it to the messages and set the result to invalid
+        isRecalculationValid = (recalculationError == null);
+        if(!isRecalculationValid) {
+            messages.add(new ValidationMessage().setMessage(recalculationError));
         }
     }
 
-
-    public boolean isValid() {
-        return isValid;
+    public boolean isSchemaValid() {
+        return isSchemaValid;
     }
 
-    public ArrayList<String> getReasons() {
-        return reasons;
+    public boolean isRecalculationValid() {
+        return isRecalculationValid;
+    }
+
+    public boolean isValid() {
+        return isSchemaValid && isRecalculationValid;
+    }
+
+    public ArrayList<ValidationMessage> getMessages() {
+        return messages;
     }
 }

@@ -2,198 +2,170 @@ package dev.marrel.rechnunglessconverter;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import dev.marrel.rechnunglessconverter.metadata.METADATAPOINT;
-import dev.marrel.rechnunglessconverter.util.FileTools;
+import dev.marrel.rechnunglessconverter.dto.ConversionResponseDto;
+import dev.marrel.rechnunglessconverter.dto.MetadataResponseDto;
+import dev.marrel.rechnunglessconverter.metadata.MetadataPoint;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.mustangproject.ZUGFeRD.XRechnungImporter;
-import org.mustangproject.ZUGFeRD.ZUGFeRDVisualizer;
-import org.mustangproject.validator.ZUGFeRDValidator;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 
 
 @Path("/")
 public class RechnunglessResource {
+
+    private static final RechnunglessService RECHNUNGLESS = new RechnunglessService();
+
     public static final String RESULT_SUCCESS = "success";
     public static final String RESULT_FAILED = "failed";
     public static final String RESULT_INVALID = "invalid";
-    public enum RESULT_KEYS {
-        RESULT, MESSAGES, METADATA, ARCHIVE_PDF, ISSUE_DATE
-    }
+
+    public static final String METADATA_VALIDITY_VALID = "VALID";
+    public static final String METADATA_VALIDITY_INVALID = "INVALID";
+    public static final String METADATA_REASON_RECALCULATION = "Recalculation";
+    public static final String METADATA_REASON_SCHEMA = "Schema";
 
     @GET
     public Response getMain() {
         return Response.ok("RechnunglessConverter - V" + RechnunglessResource.class.getPackage().getImplementationVersion()).build();
     }
 
-    /*
-    Return:
-    {
-        result: success/failed/invalid
-        messages:
-        issue_date:
-        archive_pdf:
-        }
+    @Path("/version")
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getVersion() {
+        String programVersion = RechnunglessResource.class.getPackage().getImplementationVersion();
+        String[] programVersionSplit = programVersion.split("\\.");
+
+        ObjectNode resultNode = new ObjectMapper().createObjectNode();
+        resultNode.put("major",programVersionSplit[0]);
+        resultNode.put("minor", programVersionSplit[1]);
+        resultNode.put("patch", programVersionSplit[2]);
+
+        return Response.ok(resultNode).build();
+    }
+
+    /**
+     * Visualize an electronic invoice as a PDF
+     * @param xmlInvoice The electronic invoice to be visualized
+     * @param parseInvalidXmlsParam A "True" or "False" string to determine if we should try to process the xml, even when it's invalid
+     * @return A {@link ConversionResponseDto} with the generated PDF and some metadata
      */
     @Path("/convert")
     @POST
     @Consumes(MediaType.APPLICATION_XML)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response convert(String xml){
-        java.nio.file.Path pdfFile = null;
-        String pdfAsBase64;
-
-        ObjectNode resultNode = new ObjectMapper().createObjectNode();
-
-        ValidationResult validationResult = validateInvoiceStream(xml);
-        if(validationResult.isValid() || ( System.getenv().containsKey("RECHUNGLESS_PARSEINVALIDXMLS") && System.getenv("RECHUNGLESS_PARSEINVALIDXMLS").equalsIgnoreCase("true") ) ) {
-            //XML is valid -> Visualize and extract metadata
+    public Response convert(String xmlInvoice, @DefaultValue("false") @QueryParam("parseinvalidxmls") String parseInvalidXmlsParam){
+        boolean parseInvalidXmls = parseInvalidXmlsParam.equalsIgnoreCase("true");
+        ValidationResult validationResult = RECHNUNGLESS.validateInvoice(xmlInvoice);
+        List<ValidationMessage> validationMessages = validationResult.getMessages();
+        if(validationResult.isValid() || parseInvalidXmls) {
             try {
-                pdfFile = generatePdfFile(xml);
-                pdfAsBase64 = FileTools.fileToBase64String(pdfFile);
+                final String invoicePdfBase64 = RECHNUNGLESS.generateInvoicePdf(xmlInvoice);
+
+                final HashMap<MetadataPoint, String> metadata = RECHNUNGLESS.getInvoiceMetadata(xmlInvoice, parseInvalidXmls);
+
+                final ConversionResponseDto responseDto = new ConversionResponseDto()
+                        .setResult(validationResult.isValid() ? RESULT_SUCCESS : RESULT_INVALID)
+                        .setArchivePdf(invoicePdfBase64)
+                        .setIssueDate(metadata.getOrDefault(MetadataPoint.issueDate, null))
+                        .setMessages(validationResult.getMessages());
+
+                return Response.ok(responseDto).build();
+
+            } catch (InvalidInvoiceException e) {
+                //Exception occurred during metadata extraction -> Use default process down below
+                //This catch should be obsolete, since recalculation errors are now caught during validation
+                validationMessages.addAll(e.getValidationMessages());
+
             } catch (Exception e) {
-                //Internal error during PDF generation -> throw an error back
+                // Unknown internal error during PDF generation/metadata extraction - either program failure or while parsing an invalid xml -> return an error
                 e.printStackTrace();
-                resultNode.put(RESULT_KEYS.RESULT.name().toLowerCase().toLowerCase(), RESULT_FAILED);
-                ArrayNode resultMessagesArray = resultNode.putArray(RESULT_KEYS.MESSAGES.name().toLowerCase());
-                resultMessagesArray.add("An internal error occured while trying to generate PDF: " + e.getMessage());
-                return Response.serverError().entity(resultNode).build();
-            } finally {
-                try {
-                    Files.delete(pdfFile);
-                } catch (IOException ignored) {}
+                final ConversionResponseDto responseDto = new ConversionResponseDto()
+                        .setResult(RESULT_FAILED)
+                        .setMessages(Collections.singletonList(new ValidationMessage().setMessage(
+                                "An error occurred while trying to generate PDF. Maybe this file isn't and invoice? " + e.getMessage()
+                        )));
+                return Response.serverError().entity(responseDto).build();
             }
-
-            HashMap<String, String> metadata = getMetadata(xml);
-
-            resultNode.put(RESULT_KEYS.RESULT.name().toLowerCase(), validationResult.isValid() ? RESULT_SUCCESS : RESULT_INVALID);
-            /*ObjectNode resultMetadataNode = resultNode.putObject(RESULT_KEYS.METADATA.name().toLowerCase());
-            for(String key : metadata.keySet()) {
-                resultMetadataNode.put(key, metadata.get(key));
-            }*/
-            /*ArrayNode resultMetadataArray = resultNode.putArray(RESULT_KEYS.METADATA.name().toLowerCase());
-            for(String key : metadata.keySet()) {
-                ObjectNode resultMetadataObject = resultMetadataArray.addObject();
-                resultMetadataObject.put("namespace", "");
-                resultMetadataObject.put("prefix", "");
-                resultMetadataObject.put("key", key);
-                resultMetadataObject.put("value", metadata.get(key));
-            }*/
-            if (metadata.containsKey(METADATAPOINT.issueDate.name())) {
-                resultNode.put(RESULT_KEYS.ISSUE_DATE.name().toLowerCase(), metadata.get(METADATAPOINT.issueDate.name()));
-            }
-            resultNode.put(RESULT_KEYS.ARCHIVE_PDF.name().toLowerCase(), pdfAsBase64);
-            ArrayNode resultMessagesArray = resultNode.putArray(RESULT_KEYS.MESSAGES.name().toLowerCase());
-            for(String s: validationResult.getReasons()){
-                resultMessagesArray.add(s);
-            }
-
-            System.out.println(resultNode);
-            return Response.ok(resultNode).build();
-        } else {
-            //XML is not valid and the flag to overwrite this check is not set
-            resultNode.put(RESULT_KEYS.RESULT.name().toLowerCase(), RESULT_INVALID);
-            ArrayNode resultMessagesArray = resultNode.putArray(RESULT_KEYS.MESSAGES.name().toLowerCase());
-            for(String message: validationResult.getReasons()) {
-                resultMessagesArray.add(message);
-            }
-            return Response.status(422).entity(resultNode).build();
         }
+
+        //Either invoice was determined to be invalid during validation (and the flag is not set) or during metadata extraction - in any case we treat it as an invalid invoice
+        final ConversionResponseDto responseDto = new ConversionResponseDto()
+                .setResult(RESULT_INVALID)
+                .setMessages(validationMessages);
+        return Response.status(422).entity(responseDto).build();
     }
 
+    /**
+     * Extract the metadata of an electronic invoice
+     * @param xmlInvoice The electronic invoice of which the metadata shall be extracted
+     * @param parseInvalidXmlsParam A "True" or "False" string to determine if we should try to process the xml, even when it's invalid
+     * @return A {@link MetadataResponseDto} with the metadata of the electronic invoice
+     */
     @Path("/metadata")
     @POST
     @Consumes(MediaType.APPLICATION_XML)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response metadata(String xml) {
-        //TODO
-        return Response.status(501).build();
-    }
-
-
-
-
-
-
-    /*
-    #########################
-    ## Extracting Metadata ##
-    #########################
-     */
-
-    private HashMap<String, String> getMetadata(String sourceXML) {
-        HashMap<String, String> metadataMap = new HashMap<>();
-        XRechnungImporter xrech = new XRechnungImporter(new ByteArrayInputStream(sourceXML.getBytes(StandardCharsets.UTF_8)));
-
-        for(METADATAPOINT datapoint : METADATAPOINT.values()) {
+    public Response metadata(String xmlInvoice, @DefaultValue("false") @QueryParam("parseinvalidxmls") String parseInvalidXmlsParam){
+        boolean parseInvalidXmls = parseInvalidXmlsParam.equalsIgnoreCase("true");
+        ValidationResult validationResult = RECHNUNGLESS.validateInvoice(xmlInvoice);
+        List<ValidationMessage> validationMessages = validationResult.getMessages();
+        if(validationResult.isValid() || parseInvalidXmls) {
             try {
-                if (datapoint.getValue(xrech) != null && !datapoint.getValue(xrech).isBlank())
-                    metadataMap.put(datapoint.name(), datapoint.getValue(xrech));
-                System.out.println(datapoint.name() + " : |" + datapoint.getValue(xrech) + "|");
-            } catch (NullPointerException ex) {
-                //continue
+                //Get main metadata
+                final HashMap<MetadataPoint, String> metadata = RECHNUNGLESS.getInvoiceMetadata(xmlInvoice, parseInvalidXmls);
+
+                //Add the validity data
+                metadata.put(MetadataPoint.validity, validationResult.isValid() ? METADATA_VALIDITY_VALID : METADATA_VALIDITY_INVALID);
+                if(validationResult.isValid()) {
+                    metadata.put(MetadataPoint.validity, METADATA_VALIDITY_VALID);
+                } else {
+                    metadata.put(MetadataPoint.validity, METADATA_VALIDITY_INVALID);
+                    //Logic is a bit unconventional here, but was the easiest solution
+                    if(validationResult.isSchemaValid()) {
+                        metadata.put(MetadataPoint.validityReason, METADATA_REASON_RECALCULATION);
+                    } else if (validationResult.isRecalculationValid()) {
+                        metadata.put(MetadataPoint.validityReason, METADATA_REASON_SCHEMA);
+                    } else {
+                        metadata.put(MetadataPoint.validityReason, METADATA_REASON_SCHEMA + ";" + METADATA_REASON_RECALCULATION);
+                    }
+                }
+
+                //Build Response object
+                final MetadataResponseDto responseDto = new MetadataResponseDto()
+                        .setResult(validationResult.isValid() ? RESULT_SUCCESS : RESULT_INVALID)
+                        .setMetadata(metadata)
+                        .setMessages(validationResult.getMessages());
+
+                return Response.ok(responseDto).build();
+
+            } catch (InvalidInvoiceException e) {
+                //Exception occurred during metadata extraction -> Use default process down below
+                //This catch should be obsolete, since recalculation errors are now caught during validation
+                validationMessages.addAll(e.getValidationMessages());
+
+            } catch (Exception e) {
+                // Unknown internal error during metadata extraction - either program failure or while parsing an invalid xml -> return an error
+                System.err.println(e.getMessage());
+                final ConversionResponseDto responseDto = new ConversionResponseDto()
+                        .setResult(RESULT_FAILED)
+                        .setMessages(Collections.singletonList(new ValidationMessage().setMessage(
+                                "An internal error occurred while trying to extract metadata: " + e.getMessage()
+                        )));
+                return Response.serverError().entity(responseDto).build();
             }
         }
 
-        return metadataMap;
+        //Either invoice was determined to be invalid during validation (and the flag is not set) or during metadata extraction - in any case we treat it as an invalid invoice
+        final MetadataResponseDto responseDto = new MetadataResponseDto()
+            .setResult(RESULT_INVALID)
+            .setMessages(validationMessages);
+        return Response.status(422).entity(responseDto).build();
+
     }
-
-
-
-    /*
-    #####################
-    ## Generating PDFs ##
-    #####################
-     */
-
-    private java.nio.file.Path generatePdfFile(String sourceXml) throws IOException {
-        java.nio.file.Path tempXmlFile;
-
-        tempXmlFile = Files.createTempFile("rech", ".xml");
-        Files.writeString(tempXmlFile, sourceXml,
-                StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE,
-                StandardOpenOption.TRUNCATE_EXISTING);
-
-        java.nio.file.Path pdfFile = generatePdfFile(tempXmlFile);
-        Files.delete(tempXmlFile);
-        return pdfFile;
-    }
-
-    private java.nio.file.Path generatePdfFile(java.nio.file.Path sourceXmlPath) throws IOException {
-        java.nio.file.Path pdfFile = Files.createTempFile("rech", ".pdf");
-
-        ZUGFeRDVisualizer zvi = new ZUGFeRDVisualizer();
-        zvi.toPDF(sourceXmlPath.toAbsolutePath().toString(), pdfFile.toAbsolutePath().toString());
-
-        System.out.println("Written to " + pdfFile);
-
-        return pdfFile;
-    }
-
-
-    /*
-    ##################################
-    ## Generating ValidationResults ##
-    ##################################
-     */
-
-
-    private ValidationResult validateInvoiceStream(String sourceXml) {
-        ZUGFeRDValidator zva = new ZUGFeRDValidator();
-        String mustangValidationResult = zva.validate(new ByteArrayInputStream(sourceXml.getBytes(StandardCharsets.UTF_8)), "rechstream.xml");
-
-        return new ValidationResult(mustangValidationResult);
-    }
-
-
 }
