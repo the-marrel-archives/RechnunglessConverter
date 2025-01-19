@@ -22,12 +22,14 @@ public enum MetadataPoint implements MetadataExtractor {
 
     private final MetadataExtractor extractor;
     public final String prefix;
+    public final boolean autoProcess;
     MetadataPoint(MetadataExtractor extractor) {
         this("", extractor);
     }
     MetadataPoint(String prefix, MetadataExtractor extractor) {
         this.extractor = extractor;
         this.prefix = prefix;
+        this.autoProcess = extractor != null;
     }
 
     @Override
