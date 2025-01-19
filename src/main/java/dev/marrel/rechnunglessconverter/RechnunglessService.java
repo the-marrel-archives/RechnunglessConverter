@@ -96,7 +96,7 @@ public class RechnunglessService {
             new ZUGFeRDImporter().fromXML(xmlInvoice);
         } catch(ZUGFeRDExportException ex) {
             if(ex.getCause() instanceof ArithmetricException) {
-                recalculationError = ex.getCause().getMessage();
+                recalculationError = ex.getMessage();
             }
         } catch(Exception ignored) {
         }
