@@ -11,9 +11,9 @@ import javax.xml.xpath.XPathFactory;
 import java.util.ArrayList;
 
 public class ValidationResult {
-    private boolean isSchemaValid = false;
-    private boolean isRecalculationValid = false;
-    private ArrayList<ValidationMessage> messages = new ArrayList<>();
+    private boolean isSchemaValid;
+    private boolean isRecalculationValid;
+    private final ArrayList<ValidationMessage> messages = new ArrayList<>();
 
     public ValidationResult(String mustangValidationXml, String recalculationError) {
         Element resultXmlRoot = XMLTools.parseStringXML(mustangValidationXml);
