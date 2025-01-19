@@ -76,7 +76,7 @@ class RechnunglessResourceTest {
     void convert(Path xmlInvoicePath, boolean isValid) throws IOException {
         System.out.println(xmlInvoicePath);
         String xmlInvoice = Files.readString(xmlInvoicePath);
-        try (Response result = RECHNUNGLESS_RESOURCE.convert(xmlInvoice)) {
+        try (Response result = RECHNUNGLESS_RESOURCE.convert(xmlInvoice, "false")) {
             ConversionResponseDto body = (ConversionResponseDto) result.getEntity();
             System.out.println(OBJECT_MAPPER.writeValueAsString(body.getMessages()));
             if (isValid) {

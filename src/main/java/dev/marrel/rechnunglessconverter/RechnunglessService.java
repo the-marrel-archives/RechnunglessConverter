@@ -15,7 +15,6 @@ import java.util.Base64;
 import java.util.HashMap;
 
 public class RechnunglessService {
-    public static final boolean PARSE_INVALID_XMLS = "TRUE".equalsIgnoreCase(System.getenv("RECHUNGLESS_PARSEINVALIDXMLS"));
 
     /**
      * Extract metadata from the given electronic invoice
@@ -23,10 +22,10 @@ public class RechnunglessService {
      * @param xmlInvoice The XML of an electronic invoice
      * @return The metadata extracted from the electronic invoice
      */
-    public HashMap<MetadataPoint, String> getInvoiceMetadata(String xmlInvoice) throws InvalidInvoiceException {
+    public HashMap<MetadataPoint, String> getInvoiceMetadata(String xmlInvoice, boolean parseInvalidXmls) throws InvalidInvoiceException {
         try {
             ZUGFeRDImporter invoice = new ZUGFeRDImporter();
-            if (PARSE_INVALID_XMLS) { invoice.doIgnoreCalculationErrors(); }
+            if (parseInvalidXmls) { invoice.doIgnoreCalculationErrors(); }
             invoice.fromXML(xmlInvoice);
 
             HashMap<MetadataPoint, String> metadataMap = new HashMap<>();
