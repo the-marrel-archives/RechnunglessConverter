@@ -39,7 +39,7 @@ public class RechnunglessService {
                     } catch (NullPointerException ex) {
                         //It is possible that NullPointerExceptions occur inside ZUGFeRDImporter if certain values are not present or invalid in the XML.
                         //If this occurs, we ignore the exception and continue as if the value is not present at all.
-                        //This does not make the invoice invalid however.
+                        //This does not make the invoice invalid, however.
                     }
                 }
             }
