@@ -4,5 +4,5 @@ import org.mustangproject.ZUGFeRD.ZUGFeRDImporter;
 
 @FunctionalInterface
 public interface MetadataExtractor {
-    String getValue(ZUGFeRDImporter xrechung);
+    String getValue(ZUGFeRDImporter invoice);
 }
