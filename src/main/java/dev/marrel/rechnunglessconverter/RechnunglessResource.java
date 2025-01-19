@@ -107,7 +107,8 @@ public class RechnunglessResource {
         List<ValidationMessage> validationMessages = validationResult.getMessages();
         if(validationResult.isValid() || RechnunglessService.PARSE_INVALID_XMLS) {
             try {
-                final HashMap<MetadataPoint, String> metadata = RECHNUNGLESS.getInvoiceMetadata(xmlInvoice);
+                final HashMap<MetadataPoint, String> metadata = RECHNUNGLESS.getInvoiceMetadata(xmlInvoice, parseInvalidXmls);
+                metadata.put(MetadataPoint.validity, validationResult.isValid() ? "VALID" : "INVALID");
 
                 final MetadataResponseDto responseDto = new MetadataResponseDto()
                         .setResult(validationResult.isValid() ? RESULT_SUCCESS : RESULT_INVALID)
