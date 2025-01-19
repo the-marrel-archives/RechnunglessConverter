@@ -11,16 +11,17 @@ import javax.xml.xpath.XPathFactory;
 import java.util.ArrayList;
 
 public class ValidationResult {
-    private boolean isValid = false;
+    private boolean isSchemaValid = false;
+    private boolean isRecalculationValid = false;
     private ArrayList<ValidationMessage> messages = new ArrayList<>();
 
-    public ValidationResult(String mustangValidationXml) {
+    public ValidationResult(String mustangValidationXml, String recalculationError) {
         Element resultXmlRoot = XMLTools.parseStringXML(mustangValidationXml);
 
         XPathFactory xPathFactory = XPathFactory.newInstance();
         XPath xpath = xPathFactory.newXPath();
         try {
-            isValid = xpath.evaluate("/validation/summary/@status", resultXmlRoot).equals("valid");
+            isSchemaValid = xpath.evaluate("/validation/summary/@status", resultXmlRoot).equals("valid");
         } catch (XPathExpressionException ex) {
             throw new RuntimeException(ex);
         }
@@ -45,11 +46,24 @@ public class ValidationResult {
                 }
             }
         }
+
+        //If a RecalculationError occurred, then add it to the messages and set the result to invalid
+        isRecalculationValid = (recalculationError == null);
+        if(!isRecalculationValid) {
+            messages.add(new ValidationMessage().setMessage(recalculationError));
+        }
     }
 
+    public boolean isSchemaValid() {
+        return isSchemaValid;
+    }
+
+    public boolean isRecalculationValid() {
+        return isRecalculationValid;
+    }
 
     public boolean isValid() {
-        return isValid;
+        return isSchemaValid && isRecalculationValid;
     }
 
     public ArrayList<ValidationMessage> getMessages() {

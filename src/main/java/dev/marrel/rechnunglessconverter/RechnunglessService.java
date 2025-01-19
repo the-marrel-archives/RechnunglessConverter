@@ -1,6 +1,7 @@
 package dev.marrel.rechnunglessconverter;
 
 import dev.marrel.rechnunglessconverter.metadata.MetadataPoint;
+import org.mustangproject.Exceptions.ArithmetricException;
 import org.mustangproject.ZUGFeRD.ZUGFeRDExportException;
 import org.mustangproject.ZUGFeRD.ZUGFeRDImporter;
 import org.mustangproject.ZUGFeRD.ZUGFeRDVisualizer;
@@ -90,6 +91,16 @@ public class RechnunglessService {
         ZUGFeRDValidator zva = new ZUGFeRDValidator();
         String mustangValidationResult = zva.validate(xmlInvoice.getBytes(StandardCharsets.UTF_8), "invoice-stream.xml");
 
-        return new ValidationResult(mustangValidationResult);
+        String recalculationError = null;
+        try {
+            new ZUGFeRDImporter().fromXML(xmlInvoice);
+        } catch(ZUGFeRDExportException ex) {
+            if(ex.getCause() instanceof ArithmetricException) {
+                recalculationError = ex.getCause().getMessage();
+            }
+        } catch(Exception ignored) {
+        }
+
+        return new ValidationResult(mustangValidationResult, recalculationError);
     }
 }

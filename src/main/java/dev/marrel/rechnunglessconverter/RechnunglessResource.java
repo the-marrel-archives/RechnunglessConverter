@@ -74,6 +74,7 @@ public class RechnunglessResource {
 
             } catch (InvalidInvoiceException e) {
                 //Exception occurred during metadata extraction -> Use default process down below
+                //This catch should be obsolete, since recalculation errors are now caught during validation
                 validationMessages.addAll(e.getValidationMessages());
 
             } catch (Exception e) {
@@ -123,6 +124,7 @@ public class RechnunglessResource {
 
             } catch (InvalidInvoiceException e) {
                 //Exception occurred during metadata extraction -> Use default process down below
+                //This catch should be obsolete, since recalculation errors are now caught during validation
                 validationMessages.addAll(e.getValidationMessages());
 
             } catch (Exception e) {
