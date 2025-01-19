@@ -24,6 +24,11 @@ public class RechnunglessResource {
     public static final String RESULT_FAILED = "failed";
     public static final String RESULT_INVALID = "invalid";
 
+    public static final String METADATA_VALIDITY_VALID = "VALID";
+    public static final String METADATA_VALIDITY_INVALID = "INVALID";
+    public static final String METADATA_REASON_RECALCULATION = "Recalculation";
+    public static final String METADATA_REASON_SCHEMA = "Schema";
+
     @GET
     public Response getMain() {
         return Response.ok("RechnunglessConverter - V" + RechnunglessResource.class.getPackage().getImplementationVersion()).build();
@@ -112,9 +117,26 @@ public class RechnunglessResource {
         List<ValidationMessage> validationMessages = validationResult.getMessages();
         if(validationResult.isValid() || parseInvalidXmls) {
             try {
+                //Get main metadata
                 final HashMap<MetadataPoint, String> metadata = RECHNUNGLESS.getInvoiceMetadata(xmlInvoice, parseInvalidXmls);
-                metadata.put(MetadataPoint.validity, validationResult.isValid() ? "VALID" : "INVALID");
 
+                //Add the validity data
+                metadata.put(MetadataPoint.validity, validationResult.isValid() ? METADATA_VALIDITY_VALID : METADATA_VALIDITY_INVALID);
+                if(validationResult.isValid()) {
+                    metadata.put(MetadataPoint.validity, METADATA_VALIDITY_VALID);
+                } else {
+                    metadata.put(MetadataPoint.validity, METADATA_VALIDITY_INVALID);
+                    //Logic is a bit unconventional here, but was the easiest solution
+                    if(validationResult.isSchemaValid()) {
+                        metadata.put(MetadataPoint.validityReason, METADATA_REASON_RECALCULATION);
+                    } else if (validationResult.isRecalculationValid()) {
+                        metadata.put(MetadataPoint.validityReason, METADATA_REASON_SCHEMA);
+                    } else {
+                        metadata.put(MetadataPoint.validityReason, METADATA_REASON_SCHEMA + ";" + METADATA_REASON_RECALCULATION);
+                    }
+                }
+
+                //Build Response object
                 final MetadataResponseDto responseDto = new MetadataResponseDto()
                         .setResult(validationResult.isValid() ? RESULT_SUCCESS : RESULT_INVALID)
                         .setMetadata(metadata)
