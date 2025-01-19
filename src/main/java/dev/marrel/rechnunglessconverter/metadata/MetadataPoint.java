@@ -17,7 +17,8 @@ public enum MetadataPoint implements MetadataExtractor {
     currency ("invoice", ZUGFeRDImporter::getInvoiceCurrencyCode),
     deliveryPeriod ("invoice", new DeliveryPeriodExtractor()),
     programVersion("rechnungless", new ProgramVersionExtractor()),
-    validity("invoice", null)
+    validity("invoice", null),
+    validityReason("invoice", null)
     ;
 
     private final MetadataExtractor extractor;
