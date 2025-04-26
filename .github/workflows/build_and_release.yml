@@ -38,5 +38,5 @@ jobs:
         password: ${{secrets.GITHUB_TOKEN}}
     - name: 'Build and push Image'
       run: |
-        docker build . --tag ghcr.io/${REPOOWNER}/rechnunglessconverter:${{github.ref_name}} --tag ghcr.io/${REPOOWNER}/rechnunglessconverter:${MAJMINVERSION} --tag ghcr.io/${REPOOWNER}/rechnunglessconverter:latest
-        docker push ghcr.io/${REPOOWNER}/rechnunglessconverter --all-tags
+        docker build . --tag ghcr.io/${REPOOWNER}/rechnunglessconverter-dev:${{github.ref_name}} --tag ghcr.io/${REPOOWNER}/rechnunglessconverter-dev:${MAJMINVERSION} --tag ghcr.io/${REPOOWNER}/rechnunglessconverter-dev:latest
+        docker push ghcr.io/${REPOOWNER}/rechnunglessconverter-dev --all-tags
